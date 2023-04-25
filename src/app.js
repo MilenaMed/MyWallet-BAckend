@@ -1,4 +1,4 @@
-import { MongoClient } from "mongodb";
+import { MongoClient , ObjectId} from "mongodb";
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -51,8 +51,9 @@ app.post('/cadastro', async (request, response) => {
 //POST LOGIN
 app.post("/", async (request, response) => {
     const token = uuid()
-    console.log("entrou login")
+    const { id } = request.params
     const dadosLogin = request.body
+    const sessão = await db.collection("sessions").insertOne({token})
     const usuario = await db.collection("users").findOne({ email: dadosLogin.email })
 
     try {
@@ -62,18 +63,36 @@ app.post("/", async (request, response) => {
         response.status(500).send(err);
 
     } catch (err) {
-        return response.status(200).send({ token: token, user: usuario.name })
+        console.log({ token: token, userId: sessão._id})
     }
 
 })
 // GET HOME
 app.get("/home", async (request, response) => {
+    const idUser = response.locals.sessions.idUser;
+    const { authorization } = request.headers;
+    const token = authorization?.replace("Bearer ", "");
+    if (!token) {
+        return response.status(401).send("Token não encontrado!")
+    };
     try {
-        response.status(200);
+        const logado = await db.collection("sessions").findOne({ token })
+        if (!logado) return response.status(401).send("Token inválido");
+        console.log("logado =",logado)
+
+        const historico = await db.collection("historico").find({_id: response.locals.session.idUser}).toArray();
+        console.log("dataUSER=",historico)
+        if (!historico) return response.status(500).send("Erro ao encontrar dados");
+
+
+        const transactionUser = await db
+            .collection("historico")
+            .find({ user: logado.idUser })
+            .toArray();
     } catch (err) {
         response.status(500).send(err);
     }
-});
+})
 
 
 //POST DE ENTRADAS E SAIDAS
@@ -108,7 +127,7 @@ app.post("/nova-transacao/:saida", async (request, response) => {
         })
         return response.status(201).send("valor debitado com sucesso")
     } catch (err) {
-        response.status(500).send(err);
+        return response.status(500).send(err);
     }
 });
 
