@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt";
 import { v4 as uuid } from "uuid"
+import dayjs from "dayjs";
 
 dotenv.config()
 
@@ -28,7 +29,7 @@ app.use(cors())
 app.post('/cadastro', async (request, response) => {
     const dadosDoUsuario = request.body;
 
-    console.log("entrou cadastro")
+    console.log(dadosDoUsuario)
     const senhaCriptografada = bcrypt.hashSync(dadosDoUsuario.senha, 10);
     const usuárioExiste = await db.collection("users").findOne({ email: dadosDoUsuario.email })
     if (usuárioExiste) {
@@ -61,10 +62,58 @@ app.post("/", async (request, response) => {
         response.status(500).send(err);
 
     } catch (err) {
-        return response.status(200).send(token)
+        return response.status(200).send({ token: token, user: usuario.name })
     }
 
 })
+// GET HOME
+app.get("/home", async (request, response) => {
+    try {
+        response.status(200);
+    } catch (err) {
+        response.status(500).send(err);
+    }
+});
+
+
+//POST DE ENTRADAS E SAIDAS
+//ENTRADAS
+app.post("/nova-transacao/:entrada", async (request, response) => {
+    const dadosEntrada = request.body
+    const { token } = response.locals;
+
+    try {
+        await db.collection("historico").insertOne({
+            value: dadosEntrada.valorMonetario,
+            description: dadosEntrada.descriçaoEntrada,
+            day: dayjs().format('DD/MM'),
+            type: "entrada",
+        })
+        return response.status(201).send("valor cadastrado com sucesso")
+    } catch (err) {
+        response.status(500).send(err);
+    }
+});
+// SAIDAS
+app.post("/nova-transacao/:saida", async (request, response) => {
+    const dadosSaida = request.body
+    const { token } = response.locals;
+
+    try {
+        await db.collection("historico").insertOne({
+            value: dadosSaida.valorMonetario,
+            description: dadosSaida.descriçaoEntrada,
+            day: dayjs().format('DD/MM'),
+            type: "saida",
+        })
+        return response.status(201).send("valor debitado com sucesso")
+    } catch (err) {
+        response.status(500).send(err);
+    }
+});
+
+
+//LOGOUT
 
 const PORT = 5000
 app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`))
