@@ -53,20 +53,15 @@ app.post("/", async (request, response) => {
     console.log("entrou login")
     const dadosLogin = request.body
     const usuario = await db.collection("users").findOne({ email: dadosLogin.email })
-    //const senhaCorreta = await bcrypt.compare(dadosLogin.senha, usuario.senhaCriptografada);
 
     try {
-        if (!usuario) {
-            console.log(senhaCorreta)
-            return response.status(409).send("usuário não cadastrado");
-
-       // } else if (!senhaCorreta) {
-        //    console.log("senha incorreta")
-       }
-    return response.status(200).send(token)
+        if (!usuario || !bcrypt.compareSync(dadosLogin.senha, usuario.password)) {
+            return response.status(409).send("usuário não cadastrado ou senha incorreta");
+        }
+        response.status(500).send(err);
 
     } catch (err) {
-        response.status(500).send(err);
+        return response.status(200).send(token)
     }
 
 })
